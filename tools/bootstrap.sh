@@ -82,16 +82,19 @@ else
 
     if [ ! -f "$TARBALL" ]; then
         say "downloading $ARDUINO_TARBALL (42.9 MB)"
+        # Both gh and curl are NATIVE binaries here: an MSYS path (/m/...) as -O/-o is not
+        # translated, so write from inside the cache dir with a bare filename.
         if command -v gh >/dev/null 2>&1; then
-            gh release download 4.0.0-RC1 -R espressif/arduino-esp32 \
-                -p "$ARDUINO_TARBALL" -O "$TARBALL" --clobber || true
+            ( cd "$CACHE_DIR" && gh release download 4.0.0-RC1 -R espressif/arduino-esp32 \
+                -p "$ARDUINO_TARBALL" -O "$ARDUINO_TARBALL" --clobber ) || true
         fi
         if [ ! -f "$TARBALL" ]; then
-            curl -fL --retry 2 -o "$TARBALL" "$ARDUINO_URL" \
+            ( cd "$CACHE_DIR" && curl -fL --retry 2 -o "$ARDUINO_TARBALL" "$ARDUINO_URL" ) \
                 || die "download failed. Fetch $ARDUINO_URL by hand into $CACHE_DIR/ and re-run."
         fi
     fi
 
+    [ -f "$TARBALL" ] || die "no $ARDUINO_TARBALL in $CACHE_DIR after download"
     [ "$(sha256_of "$TARBALL")" = "$ARDUINO_SHA256" ] \
         || die "checksum mismatch for $ARDUINO_TARBALL (expected $ARDUINO_SHA256)"
 
