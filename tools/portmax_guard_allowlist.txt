@@ -1,0 +1,7 @@
+# PORTMAX-LOOP allowlist — unbounded takes inside a loop that are correct.
+#
+# Format:  <path>::<enclosing function>   <why the loop may block>
+#
+# An entry prints as STALE when no violation matches it any more; delete it then.
+# The render task loop is exempt in the scanner itself and must not be listed.
+#

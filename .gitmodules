@@ -1,0 +1,4 @@
+[submodule "freeink-sdk"]
+	path = freeink-sdk
+	url = https://github.com/bartiprime/metalio-freeink-sdk-public.git
+	branch = metalio-s31

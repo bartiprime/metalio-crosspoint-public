@@ -1,0 +1,17 @@
+# Metalio E-Ink 4 Plus — 16 MB flash.
+# A single factory app slot (no OTA): the app is ~4.9 MB and OTA bookkeeping has
+# already cost flash cycles on this unit. Upgrade = reflash.
+# Name,     Type, SubType,  Offset,   Size,     Flags
+# r69: `factory` grew from 0x600000 (6 MB) to 0xE00000 (14 MB) — r68 sat 3 KB
+# from the top of the old slot. `storage` (SPIFFS, never mounted by anything in
+# src/ or lib/) moved up to sit after the app slot, so the label still exists
+# without holding the low address space the app needs. nvs 0x9000 and phy_init
+# 0xf000 are untouched on purpose: moving them would drop WiFi credentials and
+# settings across the flash.
+#   factory: 0x10000  .. 0xE10000 (0xE00000)
+#   storage: 0xE10000 .. 0xF10000 (0x100000)
+#   top of flash 0x1000000, so 0xF0000 (960 KB) stays unallocated above storage.
+nvs,        data, nvs,      0x9000,   0x6000,
+phy_init,   data, phy,      0xf000,   0x1000,
+factory,    app,  factory,  0x10000,  0xE00000,
+storage,    data, spiffs,   0xE10000, 0x100000,

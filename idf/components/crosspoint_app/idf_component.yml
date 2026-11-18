@@ -1,0 +1,19 @@
+## Managed dependencies of the CrossPoint application component.
+##
+## Only ONE dependency lives here, and it is target-gated exactly like the
+## vendor's shipping tree (_scratch/vendor-metalio main/idf_component.yml:22-25,
+## `rules: - if: target in [esp32s31]`), because the USB-MSC path only exists on
+## ESP32-S31 (HS UTMI). On any other target the component is not even fetched,
+## so their builds are byte-for-byte unaffected.
+##
+## esp_tinyusb provides tinyusb + the MSC class and the SD/MMC storage backend
+## (storage_sdmmc.c) the vendor image ships with -- verified: STOCKFW.bin carries
+## the strings "/./managed_components/espressif__esp_tinyusb/tinyusb_msc.c" and
+## "storage_sdmmc.c", so this is the same code path at the same version line.
+dependencies:
+  idf:
+    version: '>=5.4.0'
+  espressif/esp_tinyusb:
+    version: "^2.0.0"
+    rules:
+      - if: target in [esp32s31]

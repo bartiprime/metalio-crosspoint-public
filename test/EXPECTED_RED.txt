@@ -1,0 +1,81 @@
+# EXPECTED-RED register — Batch 0 (GUARD).
+#
+# A red check that is not written down here is a failure, and the runner exits
+# non-zero for it. A check written down here that is NOT red any more is also a
+# failure: either it was fixed (delete the line, in the commit that fixes it) or
+# it was disabled (which is the rot this register exists to stop). So the runner
+# is strict in both directions.
+#
+# Format, one line per check (whitespace separated, '#' starts a comment):
+#
+#   <gtest case>   <defect id>   <batch-that-turns-it-green>   <what it is waiting for>
+#
+# The batch field has no space in it (Batch-1, not "Batch 1") so the parser is
+# unambiguous.
+#
+# Turned green by Batch 1 (r101.13 QUICK, docs/planning/FIX_PLAN.md row 1):
+PolicyTests.KnownRed_FailedCompletionDropsShadowAndArmsFromWhite   B-P2-1  Batch-1  the completion drive's own failure branch resets the latch but drops no shadow (prevSampleValid_ stays true) and arms no from-white retry. Needs the fix to route it into the :2562 lane, a seam under src/.
+
+# GATE2 (r103). These two were RED *outside* the batch0 label, so the old gate never
+# ran them and reported PASS over a suite it did not execute. The gate now covers the
+# whole ctest tree (tools/batch0_runner.py), which is why they had to be accounted for
+# here instead of being silently out of scope.
+#
+# Registry entries are only for reds that are NOT fixed in this commit. The CSS one
+# below was fixed (its failure was the test stub's exact-string path compare never
+# firing on Windows, so it asserted the opposite of the production behaviour) and is
+# NOT registered -- it must stay green.
+recursive_dictionary   REC1  Batch-GATE2  a STALE host harness, not a product defect: it has not compiled since production drift added HalDisplay/pageTurnRefreshMode and EpubReaderActivity's pendingLookupSelection, and it assumed POSIX cc/c++ (the CC/CXX lookup is fixed in GATE2; the harness extraction still needs re-basing). Until it is re-based the production dictionary path has no host test, so the gate must show that debt instead of hiding it.
+
+# GATE2 surfaced these five when the gate stopped running only the batch0 label. All five are
+# host-harness debt on this Windows/MSYS toolchain, not firmware defects: they are Python drivers
+# that #include production sources and compile them on the host, and they have drifted (removed
+# APIs, names the stubs never learned, -Werror on a POSIX-only warning). Each is a separate,
+# bounded fix; none of them can hide behind the label boundary again.
+TrustedTimeTimezone           HOST1  Batch-HOST  Windows portability: the generated Arduino.h calls POSIX setenv() (absent on Windows) and the harness's timeval uses `long` where Windows time_t is 64-bit; -Werror turns both into a hard failure, so the test never runs on this host.
+RemoteButtonInputIntegration  HOST2  Batch-HOST  stale HalGPIO/CrossPointSettings stubs: production gained discardPendingTouchEvents()/hasTouch()/coverGlassKeysAreButtonBits() and softKeyHaptic, so the extracted MappedInputManager no longer compiles against the stub.
+list_viewport                 HOST3  Batch-HOST  stale UiListActivity harness: production was refactored (usesThemeListChrome/listPagerOptIn/reservePageTabs/pagerUniformRows_, UiScreen::body) and the test's stubs were never re-based.
+clipping_highlight_planes     HOST4  Batch-HOST  the generated harness carries an unused `absoluteImageGrayscale` and -Wall -Wextra -Werror rejects it; a stale extraction, not a product defect.
+clipping_selection_text       HOST5  Batch-HOST  the test's LOG_ERR stub expands to nothing, so BidiUtils' `if (!bidiWorkspace) LOG_ERR(...)` is an empty body and -Werror rejects it; the stub must be a statement that survives.
+
+# --- r165.5 (T4): THE REST OF THE RED SET, all of it pre-existing -----------------------------
+#
+# R165_4_TEST_MATRIX established the full red list for this suite and proved, by running the same
+# checks against the baseline worktree (9f720feb), that every entry below was already red there --
+# same test name, same assertion line, set difference empty. They were simply never written down,
+# so `tools/batch0_runner.py` exited 1 on checks this round did not break.
+#
+# Each entry carries its own one-line baseline citation. Nothing is registered here that cannot be
+# attributed to 9f720feb; a check this round broke was fixed instead (see T1: test_back_key_contract
+# now compiles and is in ctest).
+#
+# red at 9f720feb, same failure: the generated selection.cpp does not compile ('DisplayLockGuard' was
+# not declared in this scope at selection.cpp:90) -- the harness stub predates the guard, not a
+# product defect.
+selection_buttons             HOST6  Batch-HOST  stale selection harness: the generated ClipSelectionActivity stub never learned DisplayLockGuard (r163 C3), so it fails to compile before it asserts anything.
+# red at 9f720feb, same check: VIOLATION src/activities/reader/ReaderTaskDomain.h:119 portMAX_DELAY in
+# a loop. r165.4 removed the baseline's SECOND violation (src/audio/UiSounds.cpp:160 workerTask), so
+# this one is shrinking, not new.
+PortMaxLoopGuard              HOST7  Batch-HOST  ReaderTaskDomain::run()'s portMAX_DELAY inside a loop (the render task's own loop is the documented exception); pre-existing, and one violation fewer since r165.4.
+# red at 9f720feb, same lines (BatteryGaugeWiringTest.cpp:114,115): the test expects
+# isChargingDisplayed() twice in src/display/BatteryIconRegion.cpp and isCharging() zero times, but
+# 90ca9b49 restored the r162 raw-isCharging() path on glass evidence.
+BatteryGaugeWiring.IconRepaintWatchesTheDisplayedFlag  HOST8  Batch-HOST  the wiring test still asserts the r163 E3 raw/displayed split in the icon; the icon was deliberately reverted to the raw flag (90ca9b49). Needs a re-base, not a product fix.
+# red at 9f720feb, same line (PrewarmLookaheadTest.cpp:117): the test wants the one-line idle tail
+# "if (!backgroundBuildTick()) idlePrewarmTick();"; r163 C1 nested chapterPrefetchTick() inside it.
+PrewarmLookaheadTest.BuildTickRunsFirstAndThePrewarmOnlyWhenItDidNothing  RLOCK1  Batch-RLOCK  stale idle-tail shape: the lookahead is now the fall-through of TWO predecessors (build tick, then chapter prefetch), which the test's single-line grep cannot see.
+# red at 9f720feb, same line (PrewarmLookaheadTest.cpp:131): the test wants
+# "RenderLock lock(RenderLock::Mode::Try);" inside idlePrewarmTick(); the tree took the guard from
+# readerhandoff (DisplayLockGuard displayGuard; if (!displayGuard.owns()) return;).
+PrewarmLookaheadTest.OnePagePerIdleFrameUnderTheRenderLock  RLOCK2  Batch-RLOCK  stale locking shape: RenderLock::Mode::Try became DisplayLockGuard + owns(); the ordering property the test really checks (lock before gate before load) is unchanged.
+# red at 9f720feb, same line (ReaderHandoffTest.cpp:220): the scanner finds "DisplayLockGuard " in the
+# COMMENT at EpubReaderActivity.cpp:85 ("DisplayLockGuard lives in readerhandoff") and reads 'lives'
+# as a guard local with no owns() check.
+ReaderHandoffSources.EveryGuardIsCheckedBeforeUse  RLOCK3  Batch-RLOCK  the source scanner does not skip comment lines, so an English sentence names a guard; the production code is correct.
+# red at 9f720feb, same lines (ChapterPrefetchTest.cpp:298,299): the greps name the local literally
+# "display"; the tree renamed it displayGuard ("DisplayLockGuard displayGuard;").
+ChapterPrefetchSources.PrepareRunsOnTheIdleTail  RLOCK4  Batch-RLOCK  stale local name in a source grep: "DisplayLockGuard display;" vs the tree's displayGuard.
+# red at 9f720feb, same line (ChapterPrefetchTest.cpp:319): same 'display' vs 'displayGuard' name in
+# "if (!display.owns()) return false;".
+ChapterPrefetchSources.TouchesTheArtefactOnlyWhileOwningTheDisplay  RLOCK5  Batch-RLOCK  stale local name in a source grep; the ownership precondition the test checks is present as displayGuard.owns().
+

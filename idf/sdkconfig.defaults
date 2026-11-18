@@ -1,0 +1,278 @@
+CONFIG_IDF_TARGET="esp32s31"
+
+# ---- board / hardware (mirrors the vendor's sdkconfig.defaults.esp32s31) ----
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_200M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_320=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=32768
+
+# ---- Arduino core ----
+CONFIG_FREERTOS_HZ=1000
+# DELIBERATE DIVERGENCE from the vendor (which runs FREERTOS_HZ=100): the Arduino
+# core requires 1000 Hz ticks, and every Arduino timing helper assumes it.
+#
+# Watchdog: the vendor runs CONFIG_ESP_TASK_WDT_TIMEOUT_S=20 (its sdkconfig:2454).
+# The default here is 5 s, which a long display refresh or the 3 s BH1098G reset
+# can legitimately exceed. Match the vendor so a slow but healthy operation is not
+# mistaken for a hang.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=20
+# MANDATORY: without this cores/esp32/main.cpp compiles app_main out and the
+# link fails on exactly one symbol (undefined reference to `app_main`).
+CONFIG_AUTOSTART_ARDUINO=y
+
+# ---- Arduino library selection ----
+# Without this, the Arduino component puts EVERY bundled library's src/ directory
+# on the include path of anything that requires it (Matter, NetBIOS, Zigbee,
+# ESP-NOW, ...). That produced 223 -I entries and a 19,958-character compile
+# command, which Windows refuses to launch:
+#     ninja: fatal: CreateProcess: The parameter is incorrect.
+# The list below is exactly what the application includes: Wire, SPI, WiFi,
+# Preferences, FS/SD, WebServer/ESPmDNS/DNSServer/HTTPClient.
+CONFIG_ARDUINO_SELECTIVE_COMPILATION=y
+CONFIG_ARDUINO_SELECTIVE_Wire=y
+CONFIG_ARDUINO_SELECTIVE_SPI=y
+CONFIG_ARDUINO_SELECTIVE_Preferences=y
+CONFIG_ARDUINO_SELECTIVE_FS=y
+CONFIG_ARDUINO_SELECTIVE_SD=y
+CONFIG_ARDUINO_SELECTIVE_WiFi=y
+CONFIG_ARDUINO_SELECTIVE_Network=y
+CONFIG_ARDUINO_SELECTIVE_NetworkClientSecure=y
+CONFIG_ARDUINO_SELECTIVE_HTTPClient=y
+CONFIG_ARDUINO_SELECTIVE_WebServer=y
+CONFIG_ARDUINO_SELECTIVE_ESPmDNS=y
+CONFIG_ARDUINO_SELECTIVE_DNSServer=y
+
+# AsyncUDP is required by DNSServer.h; WiFiProv supplies the
+# network_provisioning headers that Arduino's NetworkEvents.h includes.
+# Every one of these defaults to =y, so switching COMPILATION on changes nothing
+# unless the unwanted libraries are turned OFF explicitly. Measured: with only
+# the =y list above, sdkconfig still had 34 libraries enabled.
+CONFIG_ARDUINO_SELECTIVE_ESP_SR=n
+CONFIG_ARDUINO_SELECTIVE_ESP_Video=n
+CONFIG_ARDUINO_SELECTIVE_EEPROM=n
+CONFIG_ARDUINO_SELECTIVE_Ticker=n
+CONFIG_ARDUINO_SELECTIVE_Update=n
+CONFIG_ARDUINO_SELECTIVE_Zigbee=n
+CONFIG_ARDUINO_SELECTIVE_SD_MMC=n
+CONFIG_ARDUINO_SELECTIVE_SPIFFS=n
+CONFIG_ARDUINO_SELECTIVE_FFat=n
+CONFIG_ARDUINO_SELECTIVE_LittleFS=n
+CONFIG_ARDUINO_SELECTIVE_Ethernet=n
+CONFIG_ARDUINO_SELECTIVE_PPP=n
+CONFIG_ARDUINO_SELECTIVE_Hash=n
+CONFIG_ARDUINO_SELECTIVE_ArduinoOTA=n
+CONFIG_ARDUINO_SELECTIVE_AsyncUDP=y
+CONFIG_ARDUINO_SELECTIVE_Matter=n
+CONFIG_ARDUINO_SELECTIVE_NetBIOS=n
+CONFIG_ARDUINO_SELECTIVE_WiFiProv=y
+CONFIG_ARDUINO_SELECTIVE_BLE=n
+CONFIG_ARDUINO_SELECTIVE_BluetoothSerial=n
+CONFIG_ARDUINO_SELECTIVE_SimpleBLE=n
+CONFIG_ARDUINO_SELECTIVE_RainMaker=n
+CONFIG_ARDUINO_SELECTIVE_OpenThread=n
+CONFIG_ARDUINO_SELECTIVE_Insights=n
+
+# ---- console ----
+# Only console this board exposes is the native USB-Serial/JTAG (COM4,
+# VID:PID 303A:1001). UART0 is not broken out.
+# THESE THREE LINES ARE THE CONSOLE CONTRACT: the USB mass-storage feature
+# (scope C4) time-shares the port behind the ANA_SW analog switch on GPIO36 and
+# must never be able to steal it at boot. Do not edit them to "make USB Drive
+# work"; drive mode is opt-in at runtime and returns a cold boot.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+CONFIG_ESP_CONSOLE_UART_NUM=-1
+# The rest of the ESP_CONSOLE choice, pinned as EXCLUDED. A choice member left
+# unset here is filled by the Kconfig default, and the default member is
+# UART_DEFAULT -- which is exactly how a config regenerated from this file
+# "silently" came back on UART0 with the console on a pin this board does not
+# break out. Stating the negatives is what makes the positive above a contract
+# rather than a hopeful override.
+# CONFIG_ESP_CONSOLE_UART_DEFAULT is not set
+# CONFIG_ESP_CONSOLE_UART_CUSTOM is not set
+# CONFIG_ESP_CONSOLE_NONE is not set
+# CONFIG_ESP_CONSOLE_USB_CDC is not set
+
+# ---- sleep: PowerManager calls esp_sleep_config_gpio_isolate() ----
+CONFIG_ESP_SLEEP_GPIO_RESET_WORKAROUND=y
+
+# ---- USB mass storage (scope C4, docs/planning/SCOPE_C4_USB_MSC.md) ----
+# TinyUSB MSC over the SD/MMC card, so the card can be handed to a host as a
+# drive. Values are copied from the vendor's shipped configuration for this
+# exact SoC (_scratch/vendor-metalio sdkconfig.defaults.esp32s31:27-33) and
+# from the esp_tinyusb managed component the vendor image contains.
+#
+# NOTE the absence of CONFIG_TINYUSB_ENABLED: that is Arduino's TinyUSB master
+# switch and turning it on changes how the Arduino core claims the USB
+# peripheral at boot. The vendor does not set it and their banner/enumeration is
+# proven in STOCKFW.bin, so we do not set it either. CONFIG_TINYUSB_MSC_ENABLED
+# only compiles the MSC class into esp_tinyusb; nothing installs the driver
+# until usbmsc::prepare() runs, which is gated behind the runtime flag.
+CONFIG_TINYUSB_MSC_ENABLED=y
+CONFIG_TINYUSB_MSC_BUFSIZE=8192
+CONFIG_TINYUSB_MSC_MOUNT_PATH="/sdcard"
+CONFIG_TINYUSB_DESC_MANUFACTURER_STRING="CrossPoint"
+CONFIG_TINYUSB_DESC_PRODUCT_STRING="Crosspoint"
+CONFIG_TINYUSB_DESC_SERIAL_STRING="123456"
+CONFIG_TINYUSB_DESC_MSC_STRING="CrossPoint MSC"
+
+# ---- partition table: 16 MB, one 6 MB factory app slot ----
+# The app is ~4.9 MB. The PlatformIO builds used a 5 MB ota_0 at 0x10000; here it
+# is a single factory app at 0x10000 so there is no OTA bookkeeping to corrupt.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+
+# ---- legacy + i2c-ng coexistence ----
+# The vendor display stack (bus/tps65185.c, bus/pca9555.c) uses the LEGACY
+# driver/i2c.h API on I2C_NUM_0. Arduino's Wire (esp32 core 3.x) links the NEW
+# i2c-ng driver. The legacy driver's __attribute__((constructor)) check aborts
+# the whole app at boot as soon as BOTH are merely linked -- before any I2C
+# traffic happens:
+#     E (1519) i2c: CONFLICT! driver_ng is not allowed to be used with this old driver
+#     abort() was called at PC 0x4020d515 on core 0
+# This switch removes that startup check. NOTE: both then target port 0, so the
+# real fix is porting the three vendor files to driver/i2c_master.h; this flag
+# is what lets the application run until that happens.
+# MUST STAY =y. metalio_driver still includes <driver/i2c.h> (for i2c_port_t and
+# the LEGACY_I2C_DRIVER config), so legacy symbols are linked in and IDF's startup
+# conflict check aborts with `abort() was called at PC 0x4020d515 on core 0` --
+# recorded in this file's history. Re-enabling the check is NOT a safe guardrail
+# for this binary; it is a boot abort. Remove the include first, then revisit.
+CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK=y
+
+# ---- WPA3 / SAE station support, pinned -----------------------------------
+# Every one of these is already the EFFECTIVE value in this build's generated sdkconfig (verified in
+# build/config/sdkconfig.h), so this block changes no behaviour today. It is here so the requirement
+# survives an IDF upgrade or a regenerated sdkconfig: an IDF default that flips would otherwise break
+# WPA3 association silently, and the symptom (a connect timeout) points at the network, not the build.
+CONFIG_ESP_WIFI_ENABLE_WPA3_SAE=y
+CONFIG_ESP_WIFI_ENABLE_SAE_H2E=y
+CONFIG_MBEDTLS_ECP_DP_SECP256R1_ENABLED=y
+CONFIG_MBEDTLS_ECP_DP_CURVE25519_ENABLED=y
+CONFIG_MBEDTLS_HARDWARE_MPI=y
+CONFIG_MBEDTLS_HARDWARE_SHA=y
+CONFIG_MBEDTLS_HARDWARE_AES=y
+
+# Three SNTP servers, so HalClock can hand lwIP a literal-IP set (Google/NIST) and have it
+# poll them in parallel instead of serialising timeouts. The IDF build reads idf/sdkconfig,
+# which is gitignored - without this a clean clone configures 1 and silently drops servers 2-3.
+CONFIG_LWIP_SNTP_MAX_SERVERS=3
+
+# ---- FATFS: volume labels ---------------------------------------------------
+# src/platform/UsbMscStorage.cpp:151,165 call f_getlabel() to identify the SD
+# card it hands to a USB host, and that function only exists when _USE_LABEL is
+# on. It is NOT an IDF default, and until r87 it was set only in the gitignored
+# idf/sdkconfig — so a clean checkout did not compile. Same class of bug as the
+# ULP block below: a build input that lived only in an untracked file.
+CONFIG_FATFS_USE_LABEL=y
+
+# ---- ULP co-processor: the LP core, compiled in unconditionally --------------------
+# WHY THIS IS HERE AND NOT IN idf/sdkconfig: sdkconfig is GITIGNORED. r86 enabled
+# these four lines by hand, edited a generated sdkconfig, and the result was that no
+# committed file could reproduce the LP-core build. These four lines are now part of
+# the tracked defaults, so a clean checkout configures the ULP with no manual step.
+#
+# The SoC is esp32s31, whose co-processor is the LP core (SOC_LP_CORE_SUPPORTED), not
+# the S2/S3 ULP-RISC-V. It runs while the HP core is awake.
+#
+# Having the ULP compiled in does NOT mean it runs: the runtime gate is CP_LP_CORE in
+# src/platform/PlatformFeatures.h. With that switch at 0 nothing in the image refers to
+# cp_lp_core_* or ulp_lp_core_*, so the linker keeps neither the blob nor the driver
+# (see the "shipping default" check in docs/engineering/LPCORE_AND_PPA_FRAMEWORK.md).
+#
+# RESERVE_MEM=4096 reserves the FIRST 4096 B of RTC slow memory (32 KB here) for
+# vector_table + lp_ram + shared_mem_ram; the app's RTC_NOINIT_ATTR state is placed
+# after it by the HP linker script and is unaffected. The ULP image is ~1 KB today.
+CONFIG_ULP_COPROC_ENABLED=y
+CONFIG_ULP_COPROC_TYPE_LP_CORE=y
+CONFIG_ULP_COPROC_RESERVE_MEM=4096
+# Must match sizeof(ulp_lp_core_memory_shared_cfg_t) or the LP-side build asserts.
+CONFIG_ULP_SHARED_MEM=0x10
+
+# ---- FreeRTOS run-time statistics (r96, CP_CPU_STATS) -----------------------
+# WHY THESE EXIST: until r96 nothing in this build had run-time statistics, so
+# "is core 0 or core 1 idle?" could only be answered by reading the source
+# (docs/engineering/LPCORE_PPA_PLAN... see docs/engineering/LPCORE_PPA_R96_PLAN.md
+# §1.1/§1.8). The `cpu` shell command and the `bench render` breakdown read these.
+#
+# WHY THEY ARE IN THE TRACKED DEFAULTS: the same lesson as the ULP block above and
+# the FATFS label block — a build input that lives only in the gitignored
+# idf/sdkconfig does not survive a clean checkout, and this file is the only
+# place a fresh configure can learn the requirement.
+#
+# COST, stated rather than hidden: run-time stats add a per-task accounting update
+# on every context switch and keep the 1 MHz esp_timer busy as the stats clock.
+# The counter is 32-bit, so it wraps every ~4290 s of uptime; `cpu` prints the
+# wrap in its header, and the percentages stay correct across it because every
+# task counter wraps at the same instant.
+#
+# SHIPPING: the APPLICATION switch CP_CPU_STATS (src/platform/PlatformFeatures.h)
+# defaults to 0, and with it at 0 the firmware does not read any of this — but the
+# Kconfig work is still paid at build/run time. To build a shipping image free of
+# it, comment out these four lines AND set CP_CPU_STATS 0.
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y
+# xCoreID in TaskStatus_t: the `cpu` command splits idle% by CORE, and both idle
+# tasks are named "IDLE" (configIDLE_TASK_NAME), so the core id is the only thing
+# that tells them apart.
+CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID=y
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+CONFIG_FREERTOS_RUN_TIME_STATS_USING_ESP_TIMER=y
+CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y
+# ---------------------------------------------------------------------------
+# CFG1 (r99.1): NO 802.15.4 RADIO STACK.
+#
+# This is a single-purpose reader. There is no Thread, Matter or Zigbee peer, no
+# product feature that opens a 802.15.4 interface and nothing in src/ that references
+# esp_ieee802154_* -- the stack was compiled in because the SoC supports it, not
+# because anything used it. Setting it off is PURE SUBTRACTION: no behaviour changes,
+# no API is called and gone.
+#
+# WHY IT IS IN THE TRACKED DEFAULTS: idf/sdkconfig is gitignored, so a value set only
+# there disappears on a clean checkout -- the same lesson as the CPU-stats block above.
+# THIS FILE IS NOT WHAT THE CURRENT BUILD READS, though: sdkconfig.defaults only seeds
+# a sdkconfig that does not exist yet. The build reads idf/sdkconfig, and the value is
+# set there too. Both, so a clean tree and this tree agree.
+CONFIG_IEEE802154_ENABLED=n
+
+# ---------------------------------------------------------------------------
+# r116 (FIX CANDIDATE): dynamic power management is COMPILED OUT.
+#
+# 676a51ac (r105) turned CONFIG_PM_ENABLE 0->1 and CONFIG_FREERTOS_USE_TICKLESS_IDLE
+# 0->1 and r105 was the first build that banded on glass; r104 -- the same wake
+# path, the same 1050 ms pre-drive settle, the same rail state -- did not. A
+# diff of every build's own config/sdkconfig.h leaves these two lines as the
+# ONLY state difference that survives, so r116 turns them back off and logs the
+# compiled result at boot ("[PM] pm=%d tickless=%d").
+#
+# Zeroth-order from the IDF sources: esp_pm_impl_init() fills every power mode
+# with CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ and calls esp_pm_configure() only under
+# CONFIG_PM_DFS_INIT_AUTO, which is not set and which nothing in this tree calls.
+# With no configure() there is no DFS table and s_light_sleep_en stays 0, so
+# esp_pm produced no power saving here: it only added a second owner of the CPU
+# frequency register (see esp_pm_impl_switch_mode). Tickless idle was likewise
+# inert for the same reason -- the tick is stopped inside the idle path that
+# light sleep owns. Standby power is therefore unchanged by removing them:
+# what actually saves energy on this board is the park (metalio_sleep), not PM.
+# ---------------------------------------------------------------------------
+CONFIG_PM_ENABLE=n
+# CONFIG_PM_DFS_INIT_AUTO is not set
+# CONFIG_PM_PROFILING is not set
+# CONFIG_PM_TRACE is not set
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=n
+
+# ---------------------------------------------------------------------------
+# PM-P1 (Build A, HARDWARE_POWER_PLAN.md 4.1) -- SUPERSEDED by r116 above.
+# Kept as the record of what was tried: it expected light sleep to be armed
+# later (PM-P3) and promised "one atomic per transaction" as the only cost.
+# Measured cost was a banded wake on every resume, so it is off.
+# ---------------------------------------------------------------------------
+# CONFIG_USJ_NO_AUTO_LS_ON_CONNECTION was enabled to keep the console alive if
+# light sleep were ever armed. Nothing arms it now; leave the default.
+

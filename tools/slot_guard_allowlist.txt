@@ -1,0 +1,13 @@
+# SLOT-GUARD allowlist — instances that are not a plain makeUiTarget() argument.
+#
+# Format:  <open|legit>  <path>::<enclosing function>   <reason and the batch that closes it>
+#
+#   open   a KNOWN BAD CALL, still in the tree. Printed as KNOWN-OPEN every run;
+#          delete the line in the commit that fixes the call. It is not an
+#          exemption from the rule, it is a debt with a name on it.
+#   legit  correct by design and not worth an inline comment (or blocked from
+#          getting one because the batch may not touch src/). Printed as LEGIT.
+#
+# Prefer the inline `SLOT-GUARD-ALLOW: <reason>` comment on the call itself.
+#
+legit  src/components/OptionPopup.h::render  target is a fresh local built by makeUiTarget(renderer) two lines above and used immediately; no cached slot involved.

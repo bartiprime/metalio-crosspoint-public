@@ -1,0 +1,16 @@
+# Name,   Type, SubType,  Offset,   Size,     Flags
+# SOURCE OF TRUTH: the partition table read back from THIS device at 0x8000
+# (_scratch/fw_analysis/device_backup_16MB_sleepnever.bin). It differs from
+# STOCKFW.bin's layout: this unit's ota_0 is at 0x10000, STOCKFW's is at 0x80000.
+# The firmware actually running on the device -- and the vendor bootloader that
+# boots it -- use this table, so this is the one to build against.
+#
+# 0x10000 is the APP on this device. (On STOCKFW.bin's layout 0x10000 is a 'model'
+# blob and the app sits at 0x80000. Do not mix the two up: flashing an app at the
+# wrong offset silently overwrites something else.)
+nvs,      data, nvs,      0x9000,   0x4000,
+otadata,  data, ota,      0xD000,   0x2000,
+phy_init, data, phy,      0xF000,   0x1000,
+ota_0,    app,  ota_0,    0x10000,  0x500000,
+ota_1,    app,  ota_1,    0x510000, 0x500000,
+storage,  data, 0x81,     0xA10000, 0x5F0000,

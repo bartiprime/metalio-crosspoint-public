@@ -1,0 +1,91 @@
+.pio
+.idea
+.DS_Store
+.vscode
+.zed
+open-x4-sdk
+fs_
+lib/EpdFont/fontsrc
+lib/I18n/I18nKeys.h
+lib/I18n/I18nStrings.h
+lib/I18n/I18nStrings.cpp
+*.generated.h
+# EXCEPTION: the web UI headers. scripts/build_html.py generates them, but the
+# only thing that runs it is platformio.ini's `pre:` hook -- the from-source
+# ESP-IDF path (tools/build.bat) has no generation step at all, so a fresh clone
+# failed with "html/FilesPageHtml.generated.h: No such file or directory".
+# They are derived from tracked .html/.js/.css/.svg sources, deterministic
+# (byte-identical on regeneration), and small, so they are tracked here.
+!src/network/html/**/*.generated.h
+.vs
+build
+**/__pycache__/
+/compile_commands.json
+/.cache
+.history/
+/.venv
+*.local*
+*.cpfont
+lib/EpdFont/scripts/downloaded_fonts/
+lib/EpdFont/scripts/instanced_fonts/
+lib/EpdFont/scripts/output/
+# Claude Code: keep local agent state out (worktrees, scheduled-task
+# locks, settings.local, scout CLEANUP.md).
+.claude/*
+/managed_components
+/.dummy
+/CMakeLists.txt
+/dependencies.lock
+/sdkconfig.*
+sdkconfig.sticky
+sdkconfig.x4pro
+flake.*
+
+# ---- Metalio S31 / ESP-IDF (Path A) ----
+# idf.py produces a full build tree, generated sdkconfig and managed components.
+idf/build/
+idf/build*/
+idf/sdkconfig
+idf/sdkconfig.old
+idf/managed_components/
+# Residual build trees at the repo root: every `tools/build.bat -B build-<name>`
+# leaves one (build-r113, build-r114a, build-eng-*, build-b0-tests ...). They are
+# object files and generated config, never sources. The IMAGES inside them are the
+# record (build-r11*/crosspoint_metalio.bin) and stay on disk -- they are simply not
+# committed, which is what this rule says. `git add -f` is the escape hatch.
+/build-*/
+# Stray dependency files emitted by ad-hoc compiler invocations in the repo root
+# (a-<unit>.d). They are compiler by-products, not sources.
+a-*.d
+# The Arduino core is mounted here as a directory JUNCTION to the PlatformIO
+# package. Git would follow it and commit thousands of upstream files.
+idf/components/arduino
+
+# Local scratch backups (r17-r22 bring-up)
+_scratch_*.bak
+
+# Local staging area for built images (r42 onwards; one dir, never committed)
+/_scratch/
+
+# r111 B4: the toolchain scratch dir (programs/scripts/dumps written by the harness)
+/tools/vm/.scratch/
+
+# r111 B7a: the app build output (regenerate with tools/vm/build_apps.py)
+/apps-build
+
+# App sweep lanes (apps-build-lane-*, apps-build-lane2, apps-build-xkcd ...) are
+# per-lane compiler output from a proof sweep. Regenerable; never committed.
+/apps-build-*/
+
+# Stray host-compiler objects in the repo ROOT (*.obj from ad-hoc cpvm_trace /
+# app_ref compiles). Compiler by-products, not sources.
+*.obj
+
+# Proof/scratch working trees: .scratch-p1, .scratch-p1b, .scratch-ruleA,
+# .scratch-fullscale, .scratch-devscale, .scratch-sol-before.cpb, ... These hold
+# regenerable documents (GBs) and lane scratch. Evidence of record for the r113
+# campaign lives in docs/engineering/PROOF_RECORD_R113.md, not here.
+.scratch*
+
+# host harness binaries (tools/theme_tokens/run.sh)
+tools/theme_tokens/*.exe

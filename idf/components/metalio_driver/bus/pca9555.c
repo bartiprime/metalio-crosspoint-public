@@ -1,0 +1,101 @@
+
+
+#include "pca9555.h"
+#include "metalio_i2c1.h"
+
+#include <driver/i2c_master.h>
+#include <esp_err.h>
+#include <esp_log.h>
+#include <stdint.h>
+
+#define I2C1_LOCK_MS 100
+
+#define REG_INPUT_PORT0 0
+#define REG_INPUT_PORT1 1
+
+#define REG_OUTPUT_PORT0 2
+#define REG_OUTPUT_PORT1 3
+
+#define REG_INVERT_PORT0 4
+#define REG_INVERT_PORT1 5
+
+#define REG_CONFIG_PORT0 6
+#define REG_CONFIG_PORT1 7
+
+static uint8_t s_pca9555_addr = EPDIY_PCA9555_ADDR;
+
+void pca9555_set_addr(uint8_t addr_7bit) {
+    s_pca9555_addr = addr_7bit & 0x7F;
+}
+
+uint8_t pca9555_get_addr(void) {
+    return s_pca9555_addr;
+}
+
+static esp_err_t i2c_master_read_slave(i2c_port_t port, uint8_t* data, size_t size, int reg) {
+    if (size == 0) return ESP_OK;
+    if (!metalio_i2c1_lock(I2C1_LOCK_MS)) return ESP_ERR_TIMEOUT;
+    const esp_err_t ret = metalio_i2c1_read_reg_stop_locked(port, s_pca9555_addr,
+                                                          (uint8_t)reg, data, size, 50);
+    metalio_i2c1_unlock();
+    return ret;
+}
+
+static esp_err_t i2c_master_write_slave(i2c_port_t port, uint8_t reg, uint8_t* data, size_t size) {
+    if (!metalio_i2c1_lock(I2C1_LOCK_MS)) return ESP_ERR_TIMEOUT;
+    const esp_err_t ret = metalio_i2c1_write_reg_locked(port, s_pca9555_addr, reg, data, size, 50);
+    metalio_i2c1_unlock();
+    return ret;
+}
+
+static esp_err_t pca9555_write_single(i2c_port_t port, int reg, uint8_t value) {
+    uint8_t w_data[1] = { value };
+    return i2c_master_write_slave(port, reg, w_data, sizeof(w_data));
+}
+
+esp_err_t pca9555_set_config(i2c_port_t port, uint8_t config_value, int high_port) {
+    return pca9555_write_single(port, REG_CONFIG_PORT0 + high_port, config_value);
+}
+
+esp_err_t pca9555_set_inversion(i2c_port_t port, uint8_t config_value, int high_port) {
+    return pca9555_write_single(port, REG_INVERT_PORT0 + high_port, config_value);
+}
+
+esp_err_t pca9555_set_value(i2c_port_t port, uint8_t config_value, int high_port) {
+    return pca9555_write_single(port, REG_OUTPUT_PORT0 + high_port, config_value);
+}
+
+uint8_t pca9555_read_input(i2c_port_t i2c_port, int high_port) {
+    uint8_t v = 0;
+    if (pca9555_read_input_ex(i2c_port, high_port, &v) != ESP_OK) {
+        return 0;
+    }
+    return v;
+}
+
+esp_err_t pca9555_read_input_ex(i2c_port_t i2c_port, int high_port, uint8_t* out) {
+    if (out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t err = i2c_master_read_slave(i2c_port, out, 1, REG_INPUT_PORT0 + high_port);
+    if (err != ESP_OK) {
+        ESP_LOGD("PCA9555", "%s failed: %s", __func__, esp_err_to_name(err));
+    }
+    return err;
+}
+
+// r106 B1: read ONE CONFIGURATION-SPACE REGISTER by number. The rail setters need
+// the OUTPUT register (0x02/0x03), which is not an input port: a read-modify-write
+// that used the input ports would build the next output byte from pin levels.
+// Read-only, one transaction, same I2C1 lock as every other TCA access.
+esp_err_t pca9555_read_reg_ex(i2c_port_t i2c_port, int reg, uint8_t* out) {
+  if (out == NULL) {
+    return ESP_ERR_INVALID_ARG;
+  }
+  esp_err_t err = i2c_master_read_slave(i2c_port, out, 1, reg);
+  if (err != ESP_OK) {
+    ESP_LOGD("PCA9555", "%s(0x%02X) failed: %s", __func__, reg, esp_err_to_name(err));
+  }
+  return err;
+}
+

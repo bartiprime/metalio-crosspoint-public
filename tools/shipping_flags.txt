@@ -1,0 +1,31 @@
+# SHIPPING FLAG SET — the configuration the device actually runs.
+#
+# Recorded from the r165 image that was flashed and digest-verified on 2026-11-18
+# (build-r165-clean/CMakeCache.txt). A candidate whose CP_* options differ from this file is NOT
+# comparable to the device and must not be flashed -- the ephemeral r165.2..r165.6 builds silently
+# took CP_ICON_PARTIAL_REPAINT=ON (the CMake default) while the device ran OFF, which changes the
+# battery icon's repaint path. Tests cannot catch that: host tests do not compile firmware flags.
+#
+# Checked by tools/check_build_flags.py, which tools/flash.sh runs before it writes anything.
+# Update this file ONLY together with a deliberate, recorded decision to change product behaviour.
+CP_AUDIO_PROBE=OFF
+CP_AUTOFLUSH_ON_STANDBY=ON
+CP_BENCH=OFF
+CP_BOOT_SPLASH=OFF
+CP_CUT_CAM_RAIL_ON_STANDBY=OFF
+CP_CUT_PA_RAIL_ON_STANDBY=ON
+CP_EXP=ON
+CP_HAPTIC_PROBE=OFF
+CP_ICON_PARTIAL_REPAINT=OFF
+CP_ICON_SAFE_PATCH=ON
+CP_LOG_HOLD_DURING_DRIVE=ON
+CP_LP_STANDBY=OFF
+CP_NO_DISPLAY=OFF
+CP_PANEL_ALIGN_TEST=OFF
+CP_PARK_WIFI_PAUSE=OFF
+CP_PERIPH_PROBE=OFF
+CP_READER_AA_LANE=OFF
+CP_RICKY_COMPLETION_DRIVE=ON
+CP_SD_PARK_ON_STANDBY=ON
+CP_STAGE_SIGNAL=OFF
+CP_USB_SHELL=ON

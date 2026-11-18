@@ -1,0 +1,46 @@
+From 9e9efb37b1b49dbc4e4e1d4c9a6699929e582a1c Mon Sep 17 00:00:00 2001
+From: dev <dev@local>
+Date: Wed, 28 Oct 2026 04:16:19 +0800
+Subject: [PATCH] metalio s31: give InputManager a logger on this board
+
+The Logging.h include was gated to FREEINK_DEVICE_EEGO_A4, so every LOG_*
+call site in InputManager was uncompilable on the 4 Plus and the SDK's own
+diagnostics never existed. Touch instrumentation added for the tap-loss
+investigation failed to build because of it.
+---
+ libs/hardware/InputManager/src/InputManager.cpp | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/libs/hardware/InputManager/src/InputManager.cpp b/libs/hardware/InputManager/src/InputManager.cpp
+index e78023b..f725cd2 100644
+--- a/libs/hardware/InputManager/src/InputManager.cpp
++++ b/libs/hardware/InputManager/src/InputManager.cpp
+@@ -18,8 +18,12 @@
+ #include <driver/i2c_master.h>
+ #include <esp_rom_sys.h>
+ #endif
+-#if FREEINK_DEVICE_EEGO_A4
++#if FREEINK_DEVICE_EEGO_A4 || FREEINK_DEVICE_METALIO_EINK4_PLUS
++// The logger used to be included for the Eego A4 only, which left the Plus with no LOG_* macros at
++// all: any call site here failed to compile, and the SDK's own diagnostics were silently absent.
+ #include <Logging.h>
++#endif
++#if FREEINK_DEVICE_EEGO_A4
+ 
+ #include "gsl/EegoA4GslFirmware.h"
+ #endif
+@@ -2790,6 +2794,11 @@ void InputManager::pollFt6336u(const unsigned long now) {
+       touchUpPoint = touchPoint;
+       const int dx = absInt(int(touchPoint.x) - int(touchDownPoint.x));
+       const int dy = absInt(int(touchPoint.y) - int(touchDownPoint.y));
++      // Instrumentation: the travel measured between first contact and this sample. A deliberate swipe
++      // must show a large dx/dy here; if it shows ~0, the INT gate is skipping the drag samples and
++      // the gesture never forms -- which no amount of zone logic can fix.
++      LOG_INF("TOUCH", "move dx=%d dy=%d irqReady=%d held=%lums", dx, dy, static_cast<int>(touchIrqReady),
++              static_cast<unsigned long>(now - touchDownPoint.timestamp));
+       if (dx > TOUCH_TAP_SLOP_PX || dy > TOUCH_TAP_SLOP_PX) touchMovedBeyondTapSlop = true;
+       if (dx > TOUCH_TAP_RELEASE_SLOP_PX || dy > TOUCH_TAP_RELEASE_SLOP_PX) {
+         touchMovedBeyondTapReleaseSlop = true;
+-- 
+2.53.0.windows.3
+

@@ -1,0 +1,3 @@
+add_executable(PpaSrmPlanTest PpaSrmPlanTest.cpp)
+target_link_libraries(PpaSrmPlanTest PRIVATE crosspoint_test_common GTest::gtest_main)
+gtest_discover_tests(PpaSrmPlanTest)
