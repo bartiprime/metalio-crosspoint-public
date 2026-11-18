@@ -29,6 +29,18 @@ WOLF_REF="5.7.2"          # wolfssl/Arduino-wolfSSL @ 5.7.2, as pinned in platfo
 say() { printf 'bootstrap: %s\n' "$*"; }
 die() { printf 'bootstrap: ERROR: %s\n' "$*" >&2; exit 1; }
 
+# Native Windows git cannot be handed an MSYS path (/m/...) as an argument - it fails with
+# "cannot change to '/m/...'". Clone with a RELATIVE destination from the parent directory
+# instead: bash's cd is MSYS-aware, the argument git sees contains no path prefix. Works
+# unchanged on Linux/macOS.
+clone_into() { # <url> <ref> <absolute destination>
+    local url="$1" ref="$2" dest="$3" parent name
+    parent="$(dirname "$dest")"
+    name="$(basename "$dest")"
+    mkdir -p "$parent"
+    ( cd "$parent" && git clone --depth 1 --branch "$ref" "$url" "$name" ) || die "git clone failed for $url"
+}
+
 command -v git >/dev/null || die "git not found"
 
 # --- 1. Arduino core --------------------------------------------------------
@@ -37,8 +49,7 @@ if [ -f "$ARDUINO_DIR/package.json" ] && [ -d "$ARDUINO_DIR/variants/esp32s31" ]
 else
     [ -e "$ARDUINO_DIR" ] && die "$ARDUINO_DIR exists but is not the 4.0.0-RC1 core (no variants/esp32s31). Move it away first."
     say "fetching arduino-esp32 $ARDUINO_REF -> $ARDUINO_DIR"
-    git clone --depth 1 --branch "$ARDUINO_REF" \
-        https://github.com/espressif/arduino-esp32 "$ARDUINO_DIR"
+    clone_into https://github.com/espressif/arduino-esp32 "$ARDUINO_REF" "$ARDUINO_DIR"
 fi
 
 # --- 2. Arduino-wolfSSL -----------------------------------------------------
@@ -48,8 +59,7 @@ else
     [ -e "$WOLF_DIR" ] && die "$WOLF_DIR exists but has no src/user_settings.h. Move it away first."
     say "fetching Arduino-wolfSSL $WOLF_REF -> $WOLF_DIR"
     mkdir -p "$(dirname "$WOLF_DIR")"
-    git clone --depth 1 --branch "$WOLF_REF" \
-        https://github.com/wolfSSL/Arduino-wolfSSL "$WOLF_DIR"
+    clone_into https://github.com/wolfSSL/Arduino-wolfSSL "$WOLF_REF" "$WOLF_DIR"
 fi
 
 # --- 3. vendored third-party libraries -------------------------------------
