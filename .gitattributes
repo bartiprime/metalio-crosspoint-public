@@ -1,0 +1,27 @@
+# Line endings: scripts must keep the endings their interpreter expects.
+# Without these, a Windows checkout with core.autocrlf=true rewrites *.sh to CRLF
+# and bash fails on the shebang (or on every line) for anyone cloning on Linux/macOS.
+*.sh   text eol=lf
+*.bat  text eol=crlf
+*.py   text eol=lf
+*.md   text eol=lf
+*.c    text eol=lf
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.hpp  text eol=lf
+*.csv  text eol=lf
+*.txt  text eol=lf
+*.ini  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Binaries: never touch.
+*.bin  binary
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.gif  binary
+*.xz   binary
+*.ttf  binary
+*.otf  binary
+*.cpfont binary
