@@ -131,6 +131,14 @@ Anything not in that list should be assumed untested on this board rather than w
    **and still apply the patch**. You can also point `CROSSPOINT_WOLFSSL_DIR` at any unpacked
    wolfSSL copy.
 
+   **Everything else is self-provisioning.** After those two, a first build fetches the rest on its
+   own and needs no manual step — but it does need network access once:
+   `idf/managed_components/` (ESP-IDF component manager, from `idf/components/crosspoint_app/idf_component.yml`
+   + the tracked `idf/dependencies.lock`), the generated i18n tables (`lib/I18n/I18nKeys.h`,
+   `I18nStrings.{h,cpp}`, produced at configure time by `scripts/gen_i18n.py`, stdlib-only Python),
+   and `idf/sdkconfig` from the tracked `idf/sdkconfig.defaults`. An offline build therefore needs
+   `managed_components/` pre-populated.
+
 4. **MSYS2 / git-bash on Windows** (any bash works), plus `python3`. The build *entry point* is a
    `.bat` because `idf.py` refuses to run from an MSYS shell — it prints
    `MSys/Mingw is no longer supported...` and **exits 0 without building**. A one-line log and no
@@ -162,6 +170,12 @@ MSYS2_ARG_CONV_EXCL='*' cmd.exe /c "tools\\build.bat -B build \
 
 Artifact: `build/crosspoint_metalio.bin`. (`-B` is resolved against the repo root, not `idf/`, so
 the image lands where you asked for it.)
+
+A first build from a fresh clone takes roughly **13 minutes** on a fast desktop (2,478 ninja
+targets, ESP-IDF compiled from source); `bootstrap.sh` adds a couple of minutes. This command, run
+against a fresh clone of this repository following only the steps above, produces
+`Project build complete.` with **0 errors** and a **6,799,920-byte** image, and
+`tools/check_build_flags.py build` reports all 21 `CP_*` options matching `tools/shipping_flags.txt`.
 
 **Why those three flags.** They are not optional tuning — they are the configuration the device
 actually runs, and the CMake defaults differ:
