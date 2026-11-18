@@ -52,18 +52,47 @@ board will not boot, or will not wake, without it.
 
 Anything not in that list should be assumed untested on this board rather than working.
 
+## Download and flash (no build required)
+
+If you have a Metalio E-Ink 4 Plus and just want the firmware, use the release:
+
+**<https://github.com/bartiprime/metalio-crosspoint-public/releases/latest>**
+
+Each release carries all three flash regions — the app image, `bootloader.bin` and
+`partition-table.bin` — so a first-time flash is one command (esptool 5.6.0+, replace `COM7`):
+
+```bash
+esptool --chip esp32s31 --port COM7 --baud 921600 \
+  --before default-reset --after hard-reset \
+  write-flash --compress \
+  0x2000  bootloader.bin \
+  0x8000  partition-table.bin \
+  0x10000 crosspoint_metalio_r165.6.bin
+```
+
+On a device already running our firmware, flashing the app image alone is enough:
+`write-flash --compress 0x10000 crosspoint_metalio_r165.6.bin`.
+
+**Then power cycle by hand.** The flash tool's reset leaves the device in download mode
+(`rst:0x17`, `boot:0x48 DOWNLOAD`); switch it fully off and on again before judging the image.
+A device that looks dead after a good flash has not booted yet. The release notes carry the
+sha256 of every asset — check them before flashing.
+
+Building from source needs a vendor-specific ESP-IDF 6.1 tree (prerequisite 1 below), which is the
+hard part of this project. **The release is the practical path for most people.**
+
 ## What does not work / known issues
 
-- **Cold boot flashes white before the first paint.** Known, pre-existing behaviour: the panel comes
-  up uncharged and the first frame is a clear. Not introduced by this snapshot, and not something
-  to "fix" by adding a splash — the boot splash option (`CP_BOOT_SPLASH`) exists but is **off** in
-  the shipping configuration.
+- **Cold-boot white flash — previously observed, not observed on the current release.** Earlier
+  builds flashed white before the first paint: a splash-pass `epd_clear()` plus a logo-on-white
+  frame, with the silent second boot skipping the clear, so the white stayed on the glass until the
+  reader painted. On **r165.6** the operator no longer sees it (18 Nov 2026). **No change was made
+  aimed at it**, so *why* it is gone is not confirmed — it is recorded as observed-gone, not as
+  fixed. If it comes back, the boot-clear path above is where to start.
 - **UI sounds can miss the first click after an idle period.** The audio path is brought up lazily;
   the first event after the module has parked can be silent while it resets. Later sounds are normal.
 - **Some screens are intentionally silent** — no UI sound while a paint is in flight, and on screens
   that never register a nav event.
-- **No release binaries.** Source only. A build from here is untested until it is flashed and
-  checked on the glass.
 - **Only the Windows/MSYS2 build path is verified.** Linux and macOS `idf.py` paths are untested
   with this tree.
 - Behaviours not listed under "What works" have not been verified on hardware for this snapshot.
@@ -71,18 +100,32 @@ Anything not in that list should be assumed untested on this board rather than w
 ## Build prerequisites
 
 1. **ESP-IDF 6.1, built from source — not the prebuilt archives.** This is the hardest
-   prerequisite. The build needs an IDF tree that contains the **esp32s31** target:
-   `components/esp_hw_support/port/esp32s31/` must exist and `version.txt` should read `6.1.0`.
-   The prebuilt ESP-IDF libraries that PlatformIO ships cannot be used: one of those archives leaves
-   PMA entry 7 unmapped, so PSRAM is registered with the heap but unusable and the image does not
-   fit. Check this before anything else:
+   prerequisite. The tree this firmware is built and verified against is **ESP-IDF 6.1.0**
+   (`version.txt`) with the **`esp32s31` target present**. That target is a *preview* target in
+   ESP-IDF: it exists in 6.1 (Espressif's `components/soc/` for `v6.1` contains `esp32s31`, and
+   `tools/idf_py_actions/constants.py` lists it in `PREVIEW_TARGETS`), and the `soc_caps.h` in the
+   tree used here is byte-identical to the upstream `v6.1` one. **Earlier ESP-IDF releases do not
+   have it**, and a stock 5.x or 6.0 tree will fail to build or configure this target.
+
+   The tree used here is itself a vendor-supplied copy: it is **not a git repository and has no
+   remote**, so it cannot be diffed against a tag to prove it is unmodified. Treat "an ESP-IDF 6.1
+   with the `esp32s31` port" as the requirement, and take the port from the device vendor's
+   toolchain if you cannot get `esp32s31` recognised.
+
+   Check this before anything else — if the directory does not exist, **stop**:
 
    ```bash
-   ls $IDF_PATH/components/esp_hw_support/port/ | grep esp32s31
-   cat $IDF_PATH/version.txt
+   ls $IDF_PATH/components/soc/esp32s31
+   cat $IDF_PATH/version.txt          # expect 6.1.0
    ```
 
-   If your ESP-IDF 6.1 does not carry that port, this target cannot be built — stop there.
+   A valid port answers with `soc_caps.h` (under `include/soc/`), `gpio_periph.c` and
+   `debug_probe_periph.c` among its files. Setting the target on a preview chip also needs
+   `--preview` (`idf.py --preview set-target esp32s31`), otherwise `idf.py` declines it.
+
+   The prebuilt ESP-IDF libraries that PlatformIO ships cannot be used either way: one of those
+   archives leaves PMA entry 7 unmapped, so PSRAM is registered with the heap but unusable and the
+   image does not fit.
 
 2. **The ESP-IDF Python environment.** `idf.py` is run from
    `<IDF_PYTHON_ENV_PATH>/Scripts/python.exe` on Windows; the convention this tree was verified
@@ -225,7 +268,7 @@ PORT=COM7 tools/flash.sh build/crosspoint_metalio.bin
 The equivalent esptool invocation, if you would rather see every byte:
 
 ```bash
-esptool --port COM7 --baud 921600 --before default-reset --after hard-reset \
+esptool --chip esp32s31 --port COM7 --baud 921600 --before default-reset --after hard-reset \
   write-flash --compress \
   0x2000  build/bootloader/bootloader.bin \
   0x8000  build/partition_table/partition-table.bin \
