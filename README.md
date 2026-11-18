@@ -107,22 +107,29 @@ Anything not in that list should be assumed untested on this board rather than w
 
    | Missing from the clone | Goes to | Size | Why |
    |---|---|---|---|
-   | arduino-esp32 **4.0.0-RC1** (`variants/esp32s31`) | `idf/components/arduino` | 79 MB | the application and the display driver both `REQUIRES arduino` |
+   | the Arduino core, as the **`esp32-core-4.0.0-RC1.tar.xz` release asset** + one 4-file patch | `idf/components/arduino` | 42.9 MB | the application and the display driver both `REQUIRES arduino` |
    | **wolfSSL / Arduino-wolfSSL 5.7.2** | `.pio/libdeps/metalio_eink4_plus/Arduino-wolfSSL` | 45 MB | TLS for network sync; GPLv2, so it is fetched rather than vendored |
 
    ```bash
    bash tools/bootstrap.sh
    ```
 
-   It clones both (shallow, one branch each), then verifies the seven libraries that *are* vendored
-   (`idf/components/extern/`) are present, and warns if the IDF variables are not exported. It is
-   idempotent — re-running it does nothing if both are already there. Upstream has no `4.0.0` tag;
-   the release that reports `"version": "4.0.0"` with an ESP32-S31 variant is `4.0.0-RC1`, and
-   `master` (3.3.x) has no S31 variant at all, so a stock clone from `master` will not work.
+   The script downloads the Arduino core tarball (checksum-verified), extracts it, applies
+   `tools/patches/arduino-tinyusb-msc-guard.patch`, shallow-clones wolfSSL at tag `5.7.2`, then
+   verifies the seven libraries that *are* vendored (`idf/components/extern/`) and warns if the IDF
+   variables are unset. Idempotent: re-running it changes nothing once both are in place.
 
-   If you already use PlatformIO, `pio pkg install -e metalio_eink4_plus` fetches the same wolfSSL
-   package (plus the rest of `lib_deps`) into the same `.pio/libdeps/` tree — either route satisfies
-   the build. You can also point `CROSSPOINT_WOLFSSL_DIR` at any unpacked copy.
+   **The Arduino core is not "just clone arduino-esp32".** The tree this firmware builds against is
+   the release *asset* tarball, not the git tag of the same name — the two differ, and the tag
+   version fails to compile Arduino's TinyUSB MSC units with
+   `'tinyusb_add_string_descriptor' was not declared in this scope`. The patch (4 files, one `#if`
+   guard each) is what makes those units compile against `esp_tinyusb`'s Kconfig. Both facts were
+   found by building a fresh clone, not assumed.
+
+   If you already use PlatformIO, `pio pkg install -e metalio_eink4_plus` installs the same
+   framework package into `.pio/packages/` — then symlink or copy it to `idf/components/arduino`
+   **and still apply the patch**. You can also point `CROSSPOINT_WOLFSSL_DIR` at any unpacked
+   wolfSSL copy.
 
 4. **MSYS2 / git-bash on Windows** (any bash works), plus `python3`. The build *entry point* is a
    `.bat` because `idf.py` refuses to run from an MSYS shell — it prints

@@ -1,0 +1,64 @@
+--- a/cores/esp32/FirmwareMSC.cpp
++++ b/cores/esp32/FirmwareMSC.cpp
+@@ -13,7 +13,12 @@
+ // limitations under the License.
+ #include "FirmwareMSC.h"
+ 
+-#if CONFIG_TINYUSB_MSC_ENABLED
++// CrossPoint (Metalio E-INK4 Plus): Arduino's TinyUSB MSC class belongs to
++// Arduino's TinyUSB stack, so it needs the master switch as well as the MSC
++// feature. esp_tinyusb's Kconfig defines CONFIG_TINYUSB_MSC_ENABLED on its
++// own (we use that component's MSC over SDMMC), and without
++// CONFIG_TINYUSB_ENABLED these TUs have no TinyUSB headers at all.
++#if CONFIG_TINYUSB_ENABLED && CONFIG_TINYUSB_MSC_ENABLED
+ 
+ #include <cstring>
+ #include "esp_partition.h"
+--- a/cores/esp32/FirmwareMSC.h
++++ b/cores/esp32/FirmwareMSC.h
+@@ -16,7 +16,12 @@
+ #include <stdbool.h>
+ #include "USBMSC.h"
+ 
+-#if CONFIG_TINYUSB_MSC_ENABLED
++// CrossPoint (Metalio E-INK4 Plus): Arduino's TinyUSB MSC class belongs to
++// Arduino's TinyUSB stack, so it needs the master switch as well as the MSC
++// feature. esp_tinyusb's Kconfig defines CONFIG_TINYUSB_MSC_ENABLED on its
++// own (we use that component's MSC over SDMMC), and without
++// CONFIG_TINYUSB_ENABLED these TUs have no TinyUSB headers at all.
++#if CONFIG_TINYUSB_ENABLED && CONFIG_TINYUSB_MSC_ENABLED
+ 
+ #include "esp_event.h"
+ 
+--- a/cores/esp32/USBMSC.cpp
++++ b/cores/esp32/USBMSC.cpp
+@@ -15,7 +15,12 @@
+ #include "USBMSC.h"
+ 
+ #if SOC_USB_OTG_SUPPORTED
+-#if CONFIG_TINYUSB_MSC_ENABLED
++// CrossPoint (Metalio E-INK4 Plus): Arduino's TinyUSB MSC class belongs to
++// Arduino's TinyUSB stack, so it needs the master switch as well as the MSC
++// feature. esp_tinyusb's Kconfig defines CONFIG_TINYUSB_MSC_ENABLED on its
++// own (we use that component's MSC over SDMMC), and without
++// CONFIG_TINYUSB_ENABLED these TUs have no TinyUSB headers at all.
++#if CONFIG_TINYUSB_ENABLED && CONFIG_TINYUSB_MSC_ENABLED
+ 
+ #include "esp32-hal-tinyusb.h"
+ 
+--- a/cores/esp32/USBMSC.h
++++ b/cores/esp32/USBMSC.h
+@@ -21,7 +21,12 @@
+ #include <stdbool.h>
+ #include "sdkconfig.h"
+ 
+-#if CONFIG_TINYUSB_MSC_ENABLED
++// CrossPoint (Metalio E-INK4 Plus): Arduino's TinyUSB MSC class belongs to
++// Arduino's TinyUSB stack, so it needs the master switch as well as the MSC
++// feature. esp_tinyusb's Kconfig defines CONFIG_TINYUSB_MSC_ENABLED on its
++// own (we use that component's MSC over SDMMC), and without
++// CONFIG_TINYUSB_ENABLED these TUs have no TinyUSB headers at all.
++#if CONFIG_TINYUSB_ENABLED && CONFIG_TINYUSB_MSC_ENABLED
+ 
+ // Invoked when received Start Stop Unit command
+ // - Start = 0 : stopped power mode, if load_eject = 1 : unload disk storage

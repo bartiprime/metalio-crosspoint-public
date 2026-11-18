@@ -25,3 +25,6 @@
 *.ttf  binary
 *.otf  binary
 *.cpfont binary
+
+# Patches are applied with -p1 and must keep LF.
+*.patch text eol=lf
