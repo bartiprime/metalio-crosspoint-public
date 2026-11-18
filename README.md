@@ -101,18 +101,28 @@ Anything not in that list should be assumed untested on this board rather than w
    Use native drive-letter paths (`M:/...`), not MSYS paths (`/m/...`): the values are consumed by
    native CMake, not by bash.
 
-3. **The Arduino core as a local IDF component — not tracked here.** The application and the
-   display driver both `REQUIRES arduino`, and the core is 79 MB, so it is not in this repo. Clone
-   **arduino-esp32 4.0.0** into exactly that path:
+3. **Two dependencies are not in this repository — fetch them with `tools/bootstrap.sh`.**
+   Both are too large to vendor and are git-ignored by design, so a fresh clone does not have them
+   and CMake stops at configure time:
+
+   | Missing from the clone | Goes to | Size | Why |
+   |---|---|---|---|
+   | arduino-esp32 **4.0.0-RC1** (`variants/esp32s31`) | `idf/components/arduino` | 79 MB | the application and the display driver both `REQUIRES arduino` |
+   | **wolfSSL / Arduino-wolfSSL 5.7.2** | `.pio/libdeps/metalio_eink4_plus/Arduino-wolfSSL` | 45 MB | TLS for network sync; GPLv2, so it is fetched rather than vendored |
 
    ```bash
-   git clone --depth 1 --branch 4.0.0 https://github.com/espressif/arduino-esp32 \
-       idf/components/arduino
+   bash tools/bootstrap.sh
    ```
 
-   It reports `"version": "4.0.0"` in `package.json` and ships a `variants/esp32s31` directory. This
-   is the one file-not-in-the-repo step that otherwise fails late, at configure/link time, with a
-   missing component.
+   It clones both (shallow, one branch each), then verifies the seven libraries that *are* vendored
+   (`idf/components/extern/`) are present, and warns if the IDF variables are not exported. It is
+   idempotent — re-running it does nothing if both are already there. Upstream has no `4.0.0` tag;
+   the release that reports `"version": "4.0.0"` with an ESP32-S31 variant is `4.0.0-RC1`, and
+   `master` (3.3.x) has no S31 variant at all, so a stock clone from `master` will not work.
+
+   If you already use PlatformIO, `pio pkg install -e metalio_eink4_plus` fetches the same wolfSSL
+   package (plus the rest of `lib_deps`) into the same `.pio/libdeps/` tree — either route satisfies
+   the build. You can also point `CROSSPOINT_WOLFSSL_DIR` at any unpacked copy.
 
 4. **MSYS2 / git-bash on Windows** (any bash works), plus `python3`. The build *entry point* is a
    `.bat` because `idf.py` refuses to run from an MSYS shell — it prints
@@ -128,9 +138,8 @@ Anything not in that list should be assumed untested on this board rather than w
 git clone --recursive https://github.com/bartiprime/metalio-crosspoint-public.git
 cd metalio-crosspoint-public
 
-# prerequisite 3, if you have not done it yet:
-git clone --depth 1 --branch 4.0.0 https://github.com/espressif/arduino-esp32 \
-    idf/components/arduino
+# prerequisite 3 — fetches arduino-esp32 4.0.0-RC1 and Arduino-wolfSSL 5.7.2:
+bash tools/bootstrap.sh
 
 export ESP_IDF_VERSION=6.1.0
 export IDF_PATH='M:/cpc/packages/framework-espidf'
@@ -167,6 +176,20 @@ but that is the only difference.
 ```bash
 python3 -m pytest test
 ```
+
+## Troubleshooting a clean build
+
+| Symptom | Cause / fix |
+|---|---|
+| `CMake Error ... crosspoint_app/CMakeLists.txt:196` → `Arduino-wolfSSL not found at .../.pio/libdeps/metalio_eink4_plus/Arduino-wolfSSL/src` | Prerequisite 3 was skipped. Run `bash tools/bootstrap.sh`. |
+| `CMake Error ... Third-party library '<name>' not found` | The clone is incomplete (vendored libraries live in `idf/components/extern/`). Re-clone; do not hand-copy them in. |
+| `CMakeLists.txt:... "arduino" component not found` / unknown component `arduino` | `idf/components/arduino` is missing or is a 3.x core. Run `bash tools/bootstrap.sh`. |
+| `fatal error: I18nKeys.h: No such file or directory` | The i18n tables are generated and git-ignored; configure regenerates them via `scripts/gen_i18n.py`. A missing `.yaml` set or a Python without the `requirements.txt` packages is the cause. |
+| `[build.bat] FATAL: ESP_IDF_VERSION is not set` | Prerequisite 2: export all four IDF variables. |
+| `idf.py` prints `MSys/Mingw is no longer supported` and exits 0 with no binary | You called `idf.py` directly from bash. Use `tools/build.bat` through `cmd.exe`. |
+| `ESP_ROM_ELF_DIR environment variable is not defined` | A fresh build dir; `tools/build.bat` derives it from `IDF_TOOLS_PATH`. If you call `idf.py` yourself, set it. |
+| `submodule update` leaves `freeink-sdk/` empty | Run `git submodule update --init --recursive` again from the repository root. |
+| Device appears dead right after a successful flash | Power cycle by hand — see the Flash section. |
 
 ## Flash
 

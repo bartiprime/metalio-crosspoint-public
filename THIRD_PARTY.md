@@ -70,5 +70,6 @@ obligation when you hand someone a `.bin`, not the repository's.
 | Tool | Licence |
 |---|---|
 | ESP-IDF 6.1 | Apache-2.0 |
-| arduino-esp32 4.0.0 | LGPL-2.1 |
+| arduino-esp32 4.0.0-RC1 | LGPL-2.1 |
+| Arduino-wolfSSL 5.7.2 | GPLv2 |
 | esptool | GPL-2.0 |
